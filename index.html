@@ -1,0 +1,770 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#1e88e5">
+<meta name="description" content="A 2-minute game about keeping your family covered when life rains bills.">
+<title>Family Umbrella</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Umbrella">
+<style>
+  :root {
+    --sky1: #e3f2fd;
+    --sky2: #b3e5fc;
+    --ink: #1f2a37;
+    --muted: #5b6b7d;
+    --card: #ffffff;
+    --blue: #1e88e5;
+    --teal: #00a99d;
+    --gold: #f6b400;
+    --red: #e65a4f;
+    --green: #2e9d5b;
+    --line: #dbe5ef;
+    --shadow: 0 6px 24px rgba(20, 50, 90, .15);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--ink);
+    background: linear-gradient(180deg, var(--sky1), var(--sky2));
+    -webkit-tap-highlight-color: transparent;
+  }
+  #app {
+    max-width: 520px; margin: 0 auto; height: 100%;
+    height: 100dvh; position: relative; overflow: hidden;
+  }
+  .screen { position: absolute; inset: 0; display: none; }
+  .screen.on { display: flex; }
+  .scroll { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+  /* ---------- start ---------- */
+  #start { flex-direction: column; align-items: center; justify-content: center; padding: 24px 20px; text-align: center; }
+  .logo { font-size: 72px; line-height: 1; margin-bottom: 4px; filter: drop-shadow(0 4px 6px rgba(0,0,0,.15)); }
+  h1 { font-size: 30px; margin: 6px 0 4px; letter-spacing: -.5px; }
+  .tag { color: var(--muted); margin: 0 0 18px; font-size: 16px; }
+  .how {
+    background: var(--card); border-radius: 18px; padding: 14px 16px; box-shadow: var(--shadow);
+    text-align: left; width: 100%; max-width: 380px; margin-bottom: 20px;
+  }
+  .how div { display: flex; gap: 10px; align-items: center; padding: 6px 0; font-size: 15px; }
+  .how b.ic { font-size: 24px; width: 32px; text-align: center; font-weight: normal; flex: none; }
+  .btn {
+    appearance: none; border: 0; border-radius: 999px; padding: 15px 28px; font-size: 18px; font-weight: 700;
+    color: #fff; background: linear-gradient(90deg, var(--blue), var(--teal)); box-shadow: var(--shadow);
+    cursor: pointer; font-family: inherit; text-decoration: none; display: inline-block;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn.ghost { background: #fff; color: var(--blue); border: 2px solid var(--blue); box-shadow: none; }
+  .btn.wa { background: #25a35a; }
+  .small { font-size: 12px; color: var(--muted); margin-top: 16px; max-width: 360px; }
+
+  /* ---------- game ---------- */
+  #game { flex-direction: column; }
+  .hud { padding: 10px 12px 6px; padding-top: max(10px, env(safe-area-inset-top)); }
+  .hud-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .round-name { font-weight: 700; font-size: 15px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pill { background: rgba(255,255,255,.85); border-radius: 999px; padding: 4px 10px; font-weight: 700; font-size: 15px; white-space: nowrap; }
+  .covers { white-space: nowrap; }
+  .covers span { font-size: 18px; opacity: .25; filter: grayscale(1); transition: all .3s; }
+  .covers span.has { opacity: 1; filter: none; }
+  .bar { height: 8px; background: rgba(255,255,255,.7); border-radius: 99px; overflow: hidden; margin-top: 6px; }
+  .bar i { display: block; height: 100%; width: 100%; background: var(--blue); border-radius: 99px; }
+  .peace { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 13px; color: var(--muted); }
+  .peace .bar { flex: 1; margin: 0; height: 10px; }
+  .peace .bar i { background: linear-gradient(90deg, #ff8a80, #ffca28, #66bb6a); background-size: 300px 100%; }
+  .iconbtn { appearance: none; border: 0; background: rgba(255,255,255,.85); border-radius: 50%; width: 34px; height: 34px; font-size: 16px; cursor: pointer; flex: none; }
+  .stage { flex: 1; position: relative; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; display: block; }
+
+  /* ---------- round card ---------- */
+  #card { align-items: center; justify-content: center; padding: 20px; background: rgba(15, 35, 60, .35); z-index: 5; }
+  .panel {
+    background: var(--card); border-radius: 22px; padding: 22px 20px; box-shadow: var(--shadow);
+    width: 100%; max-width: 400px; text-align: center; animation: pop .25s ease-out;
+  }
+  @keyframes pop { from { transform: scale(.9); opacity: 0; } to { transform: none; opacity: 1; } }
+  .panel .big { font-size: 56px; line-height: 1.1; }
+  .panel h2 { margin: 8px 0 6px; font-size: 22px; }
+  .panel p { margin: 0 0 12px; color: #3b4a5c; font-size: 16px; line-height: 1.45; }
+  .effects { text-align: left; margin: 0 0 16px; padding: 0; list-style: none; }
+  .effects li { background: #f3f8fc; border-radius: 12px; padding: 9px 12px; margin: 6px 0; font-size: 15px; line-height: 1.35; }
+  .effects li.good { background: #e8f6ee; }
+  .effects li.miss { background: #fff4e5; }
+
+  /* ---------- end ---------- */
+  #end { flex-direction: column; padding: 20px 16px 32px; }
+  #end .panel { max-width: none; text-align: left; margin-bottom: 14px; animation: none; }
+  .center { text-align: center; }
+  .ring { width: 150px; height: 150px; margin: 4px auto 6px; position: relative; }
+  .ring svg { transform: rotate(-90deg); }
+  .ring .num { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .ring .num b { font-size: 40px; line-height: 1; }
+  .ring .num small { color: var(--muted); font-size: 13px; }
+  .verdict { font-size: 20px; font-weight: 800; margin: 4px 0 4px; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+  .stats div { background: #f3f8fc; border-radius: 12px; padding: 8px 4px; text-align: center; font-size: 12px; color: var(--muted); }
+  .stats b { display: block; font-size: 18px; color: var(--ink); }
+  h3 { margin: 0 0 10px; font-size: 18px; }
+  .cover-row { display: flex; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+  .cover-row:first-of-type { border-top: 0; }
+  .cover-row .ic { font-size: 28px; flex: none; width: 36px; text-align: center; }
+  .cover-row p { margin: 2px 0 0; font-size: 14px; color: #3b4a5c; line-height: 1.4; }
+  .tick { font-weight: 800; }
+  .tick.y { color: var(--green); }
+  .tick.n { color: #d9822b; }
+  .eg-note { font-size: 12px; color: var(--muted); background: #fff8e1; border-radius: 8px; padding: 6px 10px; display: inline-block; margin-bottom: 10px; }
+  .gap-bars { margin: 8px 0 6px; }
+  .gap-line { display: flex; justify-content: space-between; font-size: 14px; margin: 8px 0 4px; }
+  .gbar { height: 22px; border-radius: 8px; background: #eef3f8; overflow: hidden; display: flex; }
+  .gbar i { display: block; height: 100%; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; background: var(--c); vertical-align: -1px; }
+  .gap-callout { margin-top: 12px; background: #fff1ef; border-radius: 12px; padding: 10px 12px; font-size: 15px; }
+  .tips { margin: 0; padding-left: 0; list-style: none; counter-reset: t; }
+  .tips li { position: relative; padding: 8px 0 8px 36px; font-size: 15px; line-height: 1.4; border-top: 1px solid var(--line); }
+  .tips li:first-child { border-top: 0; }
+  .tips li::before {
+    counter-increment: t; content: counter(t); position: absolute; left: 0; top: 8px; width: 24px; height: 24px; border-radius: 50%;
+    background: var(--teal); color: #fff; font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center;
+  }
+  .cta { text-align: center; background: linear-gradient(135deg, #e3f2fd, #e0f7f4); }
+  .cta p { margin: 0 0 14px; font-size: 16px; line-height: 1.45; }
+  .actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin: 4px 0 14px; }
+  .disclaimer { font-size: 12px; color: var(--muted); line-height: 1.5; text-align: center; padding: 0 6px; }
+  .toast {
+    position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%); background: #1f2a37; color: #fff;
+    padding: 10px 16px; border-radius: 999px; font-size: 14px; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 9; white-space: nowrap;
+  }
+  .toast.on { opacity: 1; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- START -->
+  <section id="start" class="screen on scroll">
+    <div class="logo">☂️</div>
+    <h1>Family Umbrella</h1>
+    <p class="tag">Life rains bills. Can you keep your family dry?</p>
+    <div class="how">
+      <div><b class="ic">👆</b><span><b>Drag</b> left and right to move your umbrella.</span></div>
+      <div><b class="ic">🪙</b><span>Catch <b>salary coins</b> to grow your savings.</span></div>
+      <div><b class="ic">🧾</b><span>Block <b>bills</b> to pay them from savings. Missed bills cause worry.</span></div>
+      <div><b class="ic">🛡️</b><span>Grab <b>cover shields</b> early. They help when life surprises you.</span></div>
+    </div>
+    <button class="btn" id="playBtn">Play (about 2 min)</button>
+    <p class="small">A light, fun game for learning. All amounts are pretend game money and illustrative examples only.</p>
+  </section>
+
+  <!-- GAME -->
+  <section id="game" class="screen">
+    <div class="hud">
+      <div class="hud-row">
+        <span class="round-name" id="roundName">Round 1</span>
+        <span class="pill" id="savings">💰 RM 3k</span>
+        <button class="iconbtn" id="muteBtn" aria-label="Sound on or off">🔊</button>
+      </div>
+      <div class="bar"><i id="timeBar"></i></div>
+      <div class="peace"><span>😊 Peace of mind</span><div class="bar"><i id="peaceBar"></i></div><span class="covers" id="coverIcons" aria-label="Your covers"><span data-k="life" title="Life cover">🛡️</span><span data-k="med" title="Medical cover">🏥</span><span data-k="ci" title="Critical illness cover">🎗️</span></span></div>
+    </div>
+    <div class="stage" id="stage"><canvas id="cv"></canvas></div>
+  </section>
+
+  <!-- ROUND CARD -->
+  <section id="card" class="screen">
+    <div class="panel">
+      <div class="big" id="cardEmoji">💼</div>
+      <h2 id="cardTitle"></h2>
+      <p id="cardText"></p>
+      <ul class="effects" id="cardEffects"></ul>
+      <button class="btn" id="cardBtn">Go!</button>
+    </div>
+  </section>
+
+  <!-- END -->
+  <section id="end" class="screen scroll">
+    <div class="panel center">
+      <div style="font-size:15px;color:var(--muted);font-weight:600">Your Family Protection Score</div>
+      <div class="ring">
+        <svg width="150" height="150" viewBox="0 0 150 150">
+          <circle cx="75" cy="75" r="64" fill="none" stroke="#eef3f8" stroke-width="14"/>
+          <circle id="ringArc" cx="75" cy="75" r="64" fill="none" stroke="url(#rg)" stroke-width="14" stroke-linecap="round" stroke-dasharray="402" stroke-dashoffset="402" style="transition: stroke-dashoffset 1.2s ease-out"/>
+          <defs><linearGradient id="rg" x1="0" x2="1"><stop offset="0" stop-color="#1e88e5"/><stop offset="1" stop-color="#00a99d"/></linearGradient></defs>
+        </svg>
+        <div class="num"><b id="scoreNum">0</b><small>out of 100</small></div>
+      </div>
+      <div class="verdict" id="verdict"></div>
+      <div style="color:#3b4a5c;font-size:15px" id="verdictText"></div>
+      <div class="stats">
+        <div><b id="stBills">0</b>bills paid</div>
+        <div><b id="stMissed">0</b>bills missed</div>
+        <div><b id="stPeace">0%</b>peace of mind</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>What your covers did</h3>
+      <div id="coverList"></div>
+    </div>
+
+    <div class="panel">
+      <h3>What is a "protection gap"?</h3>
+      <p style="margin:0 0 10px;font-size:15px;line-height:1.45;color:#3b4a5c">It's the difference between what your family would <b>need</b> if your income stopped, and what they would <b>already have</b>.</p>
+      <span class="eg-note">📌 Illustrative example family in Malaysia. Not your numbers.</span>
+      <div class="gap-bars">
+        <div class="gap-line"><span><b>Family needs</b></span><span>RM 1,120,000</span></div>
+        <div class="gbar"><i style="width:48%;background:#64b5f6"></i><i style="width:34%;background:#4db6ac"></i><i style="width:18%;background:#ffb74d"></i></div>
+        <div class="legend">
+          <span style="--c:#64b5f6">10 years of living costs (RM 4,500 a month)</span>
+          <span style="--c:#4db6ac">Home loan left (RM 380k)</span>
+          <span style="--c:#ffb74d">2 kids' education (RM 200k)</span>
+        </div>
+        <div class="gap-line" style="margin-top:14px"><span><b>Already has</b></span><span>RM 220,000</span></div>
+        <div class="gbar"><i style="width:10.7%;background:#9575cd"></i><i style="width:8.9%;background:#90a4ae"></i></div>
+        <div class="legend">
+          <span style="--c:#9575cd">Savings &amp; EPF (RM 120k)</span>
+          <span style="--c:#90a4ae">Group cover from work (RM 100k)</span>
+        </div>
+      </div>
+      <div class="gap-callout">Protection gap in this example: <b>about RM 900,000</b>. Every family's gap is different, and it changes as life changes.</div>
+      <p style="margin:12px 0 0;font-size:14px;line-height:1.45;color:#3b4a5c">🏥 Hospital bills add up fast too. As an illustration, surgery and a few nights in a private hospital can cost tens of thousands of ringgit, and long treatments such as for cancer can cost much more.</p>
+    </div>
+
+    <div class="panel">
+      <h3>5 easy next steps</h3>
+      <ol class="tips">
+        <li>Write down what your family spends each month.</li>
+        <li>List your loans: house, car, credit cards, study loans.</li>
+        <li>Think about your children's future school and university costs.</li>
+        <li>Check the cover you already have, including any from your employer.</li>
+        <li>Review your cover whenever life changes: marriage, a new baby or a new home.</li>
+      </ol>
+    </div>
+
+    <div class="panel cta">
+      <div style="font-size:40px">💬</div>
+      <p id="ctaText">Curious about your own family's numbers? Have a friendly chat with your insurance agent. They can help you work out your real protection gap.</p>
+      <div id="ctaBtnWrap"></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn" id="againBtn">Play again</button>
+      <button class="btn ghost" id="shareBtn">Share game</button>
+    </div>
+    <p class="disclaimer">This game is for learning and fun only. All amounts are pretend game money or illustrative examples. They are not a quote, an offer or financial advice. What any insurance plan pays depends on its actual terms, conditions and exclusions.</p>
+  </section>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  // ---------- optional agent details from the link, e.g. ?agent=Amanda&wa=60123456789 ----------
+  const params = new URLSearchParams(location.search);
+  const AGENT = (params.get('agent') || '').trim().slice(0, 40);
+  const WA = (params.get('wa') || '').replace(/[^0-9]/g, '').slice(0, 15);
+
+  // ---------- rounds ----------
+  const ROUNDS = [
+    {
+      emoji: '💼', name: 'Starting out',
+      text: 'You got your first job! Catch salary coins and pay your bills with your umbrella. Cover shields are falling too. Grab them while you are young and healthy!',
+      dur: 25, coinRate: 1.05, billRate: 0.6, speed: 0.30,
+      bills: [['Rent', 1], ['Phone bill', 1], ['Food', 1], ['Transport', 1]],
+      shields: 'all', family: ['🧑'], house: false
+    },
+    {
+      emoji: '💍', name: 'Wedding & baby',
+      text: 'Congratulations, your family is growing! More people to care for means bigger bills, like a home loan. Missed a cover shield? Here is another chance.',
+      dur: 30, coinRate: 1.15, billRate: 0.85, speed: 0.33,
+      bills: [['Home loan', 2], ['Groceries', 1], ['Baby needs', 1], ['Car loan', 1], ['Utilities', 1]],
+      shields: 'missing', family: ['🧑', '👩', '👶'], house: true
+    },
+    {
+      emoji: '🏥', name: 'A surprise hospital stay',
+      text: 'Oh no! The main earner needs an operation and a few months to recover. Salary slows to a trickle, but the bills keep coming, plus hospital bills.',
+      dur: 25, coinRate: 0.2, billRate: 0.75, speed: 0.34, hospRate: 0.45,
+      bills: [['Home loan', 2], ['Groceries', 1], ['Car loan', 1], ['Utilities', 1]],
+      shields: 'none', family: ['🤒', '👩', '👶'], house: true, sick: true
+    },
+    {
+      emoji: '🎒', name: 'Kids growing up',
+      text: 'Back on your feet! The kids are growing fast, and so are school fees. Keep your umbrella up!',
+      dur: 30, coinRate: 1.2, billRate: 0.95, speed: 0.37,
+      bills: [['School fees', 2], ['Tuition', 1], ['Home loan', 2], ['Groceries', 1], ['Car loan', 1]],
+      shields: 'none', family: ['🧑', '👩', '👧', '👦'], house: true
+    }
+  ];
+
+  const COVERS = {
+    life: { emoji: '🛡️', name: 'Life cover', color: '#1e88e5' },
+    med:  { emoji: '🏥', name: 'Medical cover', color: '#00a99d' },
+    ci:   { emoji: '🎗️', name: 'Critical illness cover', color: '#8e5bd6' }
+  };
+  const CI_PAYOUT = 10;     // game money (k)
+  const NET_SIZE = 6;       // bills the life-cover safety net can catch
+  const PREMIUM = 1;        // game money per cover per new round
+
+  // ---------- elements ----------
+  const $ = id => document.getElementById(id);
+  const cv = $('cv'), ctx = cv.getContext('2d');
+  const stage = $('stage');
+  const screens = ['start', 'game', 'card', 'end'];
+  function show(...ids) { screens.forEach(s => $(s).classList.toggle('on', ids.includes(s))); }
+
+  // ---------- sound (tiny blips, no files) ----------
+  let actx = null, muted = false;
+  function beep(freq, dur = 0.08, type = 'sine', vol = 0.08) {
+    if (muted) return;
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = type; o.frequency.value = freq;
+      g.gain.setValueAtTime(vol, actx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + dur);
+      o.connect(g); g.connect(actx.destination);
+      o.start(); o.stop(actx.currentTime + dur);
+    } catch (e) { /* sound is optional */ }
+  }
+  $('muteBtn').onclick = () => { muted = !muted; $('muteBtn').textContent = muted ? '🔇' : '🔊'; };
+
+  // ---------- state ----------
+  let S;
+  function newState() {
+    return {
+      round: 0, t: 0, savings: 3, peace: 100,
+      covers: { life: false, med: false, ci: false },
+      net: 0, items: [], fx: [], timers: { coin: 0, bill: 0, hosp: 0 },
+      shieldQueue: [], paid: 0, missed: 0, coins: 0, hospCovered: 0, netCaught: 0, unpaidHosp: 0,
+      umbX: 0.5, targetX: 0.5, running: false, flash: 0
+    };
+  }
+
+  // ---------- canvas sizing ----------
+  let W = 0, H = 0, DPR = 1;
+  function resize() {
+    const r = stage.getBoundingClientRect();
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = Math.max(200, r.width); H = Math.max(260, r.height);
+    cv.width = W * DPR; cv.height = H * DPR;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  window.addEventListener('resize', resize);
+
+  // geometry helpers
+  const famH = () => Math.min(96, H * 0.16);
+  const umbW = () => Math.max(96, Math.min(170, W * 0.34));
+  const umbY = () => H - famH() - Math.max(26, H * 0.06);
+  const headY = () => H - famH() * 0.35 - Math.min(44, famH() * 0.5) - 6; // just above the family's heads
+
+  // ---------- input ----------
+  function setTarget(clientX) {
+    const r = cv.getBoundingClientRect();
+    S.targetX = Math.min(1, Math.max(0, (clientX - r.left) / r.width));
+  }
+  cv.addEventListener('pointerdown', e => { if (S) { setTarget(e.clientX); cv.setPointerCapture(e.pointerId); } });
+  cv.addEventListener('pointermove', e => { if (S) setTarget(e.clientX); });
+  const keys = {};
+  window.addEventListener('keydown', e => { keys[e.key] = true; if (e.key === 'Enter' && $('card').classList.contains('on')) $('cardBtn').click(); });
+  window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+  // ---------- HUD ----------
+  function fmtK(n) { return 'RM ' + (Math.round(n * 10) / 10) + 'k'; }
+  function hud() {
+    const R = ROUNDS[S.round];
+    $('roundName').textContent = `${S.round + 1}/4 · ${R.name}`;
+    $('savings').textContent = '💰 ' + fmtK(S.savings);
+    $('savings').style.color = S.savings < 1 ? 'var(--red)' : '';
+    $('timeBar').style.width = Math.max(0, 100 - (S.t / R.dur) * 100) + '%';
+    $('peaceBar').style.width = S.peace + '%';
+    $('peaceBar').style.backgroundPosition = `${-(100 - S.peace) * 2}px 0`;
+    document.querySelectorAll('#coverIcons span').forEach(s => s.classList.toggle('has', S.covers[s.dataset.k]));
+  }
+
+  let toastTimer;
+  function toast(msg) {
+    const el = $('toast'); el.textContent = msg; el.classList.add('on');
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('on'), 2000);
+  }
+
+  // ---------- round flow ----------
+  function startGame() {
+    S = newState();
+    show('game');
+    resize();
+    roundCard();
+  }
+
+  function roundCard() {
+    const R = ROUNDS[S.round];
+    $('cardEmoji').textContent = R.emoji;
+    $('cardTitle').textContent = `Round ${S.round + 1}: ${R.name}`;
+    $('cardText').textContent = R.text;
+    const ul = $('cardEffects'); ul.innerHTML = '';
+    const add = (cls, html) => { const li = document.createElement('li'); li.className = cls; li.innerHTML = html; ul.appendChild(li); };
+
+    // regular cost of cover from round 2
+    const n = Object.values(S.covers).filter(Boolean).length;
+    if (S.round > 0 && n) {
+      S.savings -= n * PREMIUM;
+      add('', `💳 Your ${n} cover${n > 1 ? 's' : ''} cost a small amount each round: −${fmtK(n * PREMIUM)} from savings.`);
+    }
+    if (R.sick) {
+      add(S.covers.med ? 'good' : 'miss', S.covers.med
+        ? '🏥 <b>Medical cover is on!</b> Hospital bills will turn green and be paid for you.'
+        : '🏥 No medical cover. Hospital bills must come out of your savings.');
+      if (S.covers.ci) { S.savings += CI_PAYOUT; S.ciPaid = true; }
+      add(S.covers.ci ? 'good' : 'miss', S.covers.ci
+        ? `🎗️ <b>Critical illness cover paid a lump sum!</b> +${fmtK(CI_PAYOUT)} to help while income is low.`
+        : '🎗️ No critical illness cover, so there is no lump sum while income is low.');
+      add(S.covers.life ? 'good' : 'miss', S.covers.life
+        ? `🛡️ <b>Life cover safety net is up</b> under your family. It catches up to ${NET_SIZE} missed bills.`
+        : '🛡️ No life cover safety net under your family.');
+      if (S.covers.life) S.net = NET_SIZE;
+      if (!S.covers.med || !S.covers.ci || !S.covers.life) add('', '💡 New cover is usually harder to get after an illness. That is why planning early helps.');
+    }
+    if (R.shields === 'missing') {
+      const miss = Object.keys(S.covers).filter(k => !S.covers[k]);
+      add('', miss.length ? `🛡️ Watch for: ${miss.map(k => COVERS[k].emoji + ' ' + COVERS[k].name).join(', ')}.` : '🌟 You already have all 3 covers. Nice!');
+    }
+    if (S.round === 3 && S.covers.life) add('good', `🛡️ Your safety net still has ${S.net} catch${S.net === 1 ? '' : 'es'} left.`);
+
+    $('cardBtn').textContent = S.round === 0 ? "Let's go!" : 'Go!';
+    hud();
+    show('game', 'card');
+  }
+
+  $('cardBtn').onclick = () => {
+    beep(660, 0.1);
+    show('game');
+    beginRound();
+  };
+
+  function beginRound() {
+    const R = ROUNDS[S.round];
+    S.t = 0; S.items = []; S.timers = { coin: 0.3, bill: 1.2, hosp: 1.5 };
+    S.shieldQueue = [];
+    const want = R.shields === 'all' ? ['life', 'med', 'ci']
+      : R.shields === 'missing' ? Object.keys(S.covers).filter(k => !S.covers[k]) : [];
+    // spread shields through the round, in random order
+    want.sort(() => Math.random() - 0.5).forEach((k, i) => {
+      S.shieldQueue.push({ k, at: R.dur * (0.15 + 0.7 * (i + 0.5) / Math.max(1, want.length)) });
+    });
+    S.running = true;
+    last = performance.now();
+    requestAnimationFrame(loop);
+  }
+
+  function endRound() {
+    S.running = false;
+    S.round++;
+    if (S.round >= ROUNDS.length) return finish();
+    setTimeout(roundCard, 350);
+  }
+
+  // ---------- spawning ----------
+  function spawn(kind, extra = {}) {
+    const R = ROUNDS[S.round];
+    const base = H * R.speed * (0.85 + Math.random() * 0.3);
+    let it = { kind, y: -30, vy: base, rot: (Math.random() - 0.5) * 0.3, ...extra };
+    if (kind === 'coin') { it.w = it.h = 30; it.vy *= 1.05; }
+    else if (kind === 'bill') {
+      const [label, cost] = R.bills[Math.floor(Math.random() * R.bills.length)];
+      it.label = label; it.cost = cost; it.w = cost > 1 ? 96 : 84; it.h = 40;
+    } else if (kind === 'hosp') { it.label = 'Hospital bill'; it.cost = 4; it.w = 104; it.h = 44; it.vy *= 0.9; }
+    else if (kind === 'shield') { it.w = it.h = 46; it.vy *= 0.85; }
+    const m = it.w / 2 + 6;
+    it.x = m + Math.random() * Math.max(1, W - 2 * m);
+    S.items.push(it);
+  }
+
+  function addFx(x, y, text, color) { S.fx.push({ x, y, text, color, life: 1 }); }
+
+  // ---------- game loop ----------
+  let last = 0;
+  function loop(now) {
+    if (!S || !S.running) return;
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    update(dt); draw();
+    hud();
+    if (S.running) requestAnimationFrame(loop);
+  }
+
+  function update(dt) {
+    const R = ROUNDS[S.round];
+    S.t += dt;
+
+    // umbrella movement (pointer target, or arrow keys)
+    if (keys.ArrowLeft || keys.a) S.targetX = Math.max(0, S.targetX - dt * 1.4);
+    if (keys.ArrowRight || keys.d) S.targetX = Math.min(1, S.targetX + dt * 1.4);
+    const half = umbW() / 2 / W;
+    const tx = Math.min(1 - half, Math.max(half, S.targetX));
+    S.umbX += (tx - S.umbX) * Math.min(1, dt * 18);
+
+    // spawn (stop spawning in the last 1.5s so the round ends cleanly)
+    if (S.t < R.dur - 1.5) {
+      S.timers.coin -= dt; S.timers.bill -= dt; S.timers.hosp -= dt;
+      if (S.timers.coin <= 0) { spawn('coin'); S.timers.coin = (0.6 + Math.random() * 0.8) / R.coinRate; }
+      if (S.timers.bill <= 0) { spawn('bill'); S.timers.bill = (0.6 + Math.random() * 0.8) / R.billRate; }
+      if (R.hospRate && S.timers.hosp <= 0) { spawn('hosp'); S.timers.hosp = (0.6 + Math.random() * 0.8) / R.hospRate; }
+      while (S.shieldQueue.length && S.t >= S.shieldQueue[0].at) spawn('shield', { cover: S.shieldQueue.shift().k });
+    }
+
+    const ux = S.umbX * W, uw = umbW(), uy = umbY(), ch = uw * 0.42;
+    const ground = headY();
+
+    for (const it of S.items) {
+      it.y += it.vy * dt;
+      if (it.done) continue;
+      const covered = it.kind === 'hosp' && S.covers.med;
+      // hits umbrella?
+      if (!it.through && it.y + it.h / 2 >= uy - ch * 0.75 && it.y - it.h / 2 < uy && Math.abs(it.x - ux) < uw / 2 + it.w * 0.2) {
+        if (it.kind === 'coin') {
+          S.savings += 1; S.coins++; it.done = true; addFx(it.x, it.y, '+1k', '#c99400'); beep(880, 0.07, 'triangle');
+        } else if (it.kind === 'shield') {
+          S.covers[it.cover] = true; it.done = true;
+          addFx(it.x, it.y, COVERS[it.cover].name + '!', COVERS[it.cover].color);
+          toast(`${COVERS[it.cover].emoji} ${COVERS[it.cover].name} is on!`);
+          beep(523, 0.1); setTimeout(() => beep(784, 0.15), 90);
+        } else if (covered) {
+          it.done = true; S.hospCovered++; addFx(it.x, it.y, 'Covered ✓', '#2e9d5b'); beep(700, 0.1);
+        } else if (S.savings >= it.cost) {
+          S.savings -= it.cost; S.paid++; it.done = true; addFx(it.x, it.y, '−' + it.cost + 'k paid', '#1e6fc0'); beep(330, 0.06, 'square', 0.04);
+        } else {
+          it.through = true; addFx(it.x, it.y, 'Not enough savings!', '#e65a4f'); beep(180, 0.15, 'sawtooth', 0.04);
+        }
+      }
+      // reaches the family?
+      if (!it.done && it.y - it.h / 2 > ground) {
+        it.done = true;
+        if (it.kind === 'bill' || it.kind === 'hosp') {
+          if (covered) { S.hospCovered++; addFx(it.x, ground - 10, 'Covered ✓', '#2e9d5b'); }
+          else if (S.net > 0) { S.net--; S.netCaught++; addFx(it.x, ground - 10, 'Safety net ✓', '#1e88e5'); beep(600, 0.08); }
+          else {
+            const hit = it.kind === 'hosp' ? 8 : 3;
+            S.peace = Math.max(0, S.peace - hit); S.missed++; S.flash = 1;
+            if (it.kind === 'hosp') S.unpaidHosp++;
+            addFx(it.x, ground - 10, 'Unpaid! 😟', '#e65a4f'); beep(150, 0.18, 'sawtooth', 0.05);
+            if (navigator.vibrate) navigator.vibrate(40);
+          }
+        }
+      }
+    }
+    S.items = S.items.filter(it => !it.done && it.y < H + 60);
+    for (const f of S.fx) { f.life -= dt * 1.1; f.y -= dt * 40; }
+    S.fx = S.fx.filter(f => f.life > 0);
+    S.flash = Math.max(0, S.flash - dt * 2.5);
+
+    if (S.t >= R.dur && S.items.length === 0) endRound();
+    else if (S.t >= R.dur + 4) endRound();
+  }
+
+  // ---------- drawing ----------
+  const EMOJI_FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+  function rr(x, y, w, h, r) {
+    ctx.beginPath(); ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+  }
+
+  function draw() {
+    const R = ROUNDS[S.round];
+    ctx.clearRect(0, 0, W, H);
+
+    // soft clouds
+    ctx.fillStyle = 'rgba(255,255,255,.55)';
+    const drift = (performance.now() / 60) % (W + 200);
+    [[0.15, 0.12, 1], [0.7, 0.22, 0.8], [0.4, 0.4, 0.6]].forEach(([cx, cy, s], i) => {
+      const x = ((cx * W + drift * (0.3 + i * 0.15)) % (W + 160)) - 80, y = cy * H;
+      ctx.beginPath(); ctx.ellipse(x, y, 46 * s, 16 * s, 0, 0, 7); ctx.ellipse(x + 26 * s, y - 10 * s, 28 * s, 16 * s, 0, 0, 7); ctx.fill();
+    });
+
+    // ground + family
+    const fh = famH(), gy = H - fh * 0.35;
+    ctx.fillStyle = '#9ccc65'; ctx.fillRect(0, gy, W, H - gy);
+    ctx.fillStyle = '#8bc34a'; ctx.fillRect(0, gy, W, 4);
+    if (S.flash > 0) { ctx.fillStyle = `rgba(230,90,79,${S.flash * 0.25})`; ctx.fillRect(0, 0, W, H); }
+
+    const fam = R.family.slice();
+    const size = Math.min(44, fh * 0.5);
+    ctx.font = `${size}px ${EMOJI_FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    const worried = S.peace < 40;
+    const groupW = (fam.length + (R.house ? 1.3 : 0)) * size * 1.05;
+    let fx0 = W / 2 - groupW / 2 + size / 2;
+    if (R.house) { ctx.font = `${size * 1.3}px ${EMOJI_FONT}`; ctx.fillText('🏠', fx0 + size * 0.15, gy + 2); fx0 += size * 1.35; ctx.font = `${size}px ${EMOJI_FONT}`; }
+    fam.forEach((e, i) => {
+      const bob = Math.sin(performance.now() / 300 + i) * 2;
+      ctx.fillText(e, fx0 + i * size * 1.05, gy + bob);
+    });
+    if (worried) { ctx.font = `${size * 0.55}px ${EMOJI_FONT}`; ctx.fillText('💭😟', W / 2 + groupW / 2 + 10, gy - size * 0.9); }
+
+    // safety net
+    if (S.net > 0) {
+      const ny = headY();
+      ctx.strokeStyle = 'rgba(30,136,229,.75)'; ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let x = 0; x <= W; x += 12) ctx.lineTo(x, ny + Math.sin(x / 12 * Math.PI) * 3);
+      ctx.stroke();
+      ctx.fillStyle = '#1e88e5'; ctx.font = '600 11px system-ui, sans-serif'; ctx.textAlign = 'left';
+      ctx.fillText(`🛡️ Safety net ×${S.net}`, 8, ny - 6);
+      ctx.textAlign = 'center';
+    }
+
+    // items
+    for (const it of S.items) drawItem(it);
+
+    // umbrella
+    const ux = S.umbX * W, uw = umbW(), uy = umbY(), ch = uw * 0.42;
+    ctx.strokeStyle = '#5d4037'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(ux, uy - ch * 0.4); ctx.lineTo(ux, uy + 34);
+    ctx.arc(ux - 8, uy + 34, 8, 0, Math.PI); ctx.stroke();
+    const broke = S.savings < 1;
+    const g = ctx.createLinearGradient(ux - uw / 2, 0, ux + uw / 2, 0);
+    if (broke) { g.addColorStop(0, '#b0bec5'); g.addColorStop(1, '#90a4ae'); }
+    else { g.addColorStop(0, '#1e88e5'); g.addColorStop(1, '#00a99d'); }
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.moveTo(ux - uw / 2, uy);
+    ctx.quadraticCurveTo(ux - uw / 2, uy - ch, ux, uy - ch);
+    ctx.quadraticCurveTo(ux + uw / 2, uy - ch, ux + uw / 2, uy);
+    const sc = 4, sw = uw / sc;
+    for (let i = sc - 1; i >= 0; i--) ctx.quadraticCurveTo(ux - uw / 2 + sw * (i + 0.5), uy - ch * 0.22, ux - uw / 2 + sw * i, uy);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 1.5;
+    for (let i = 1; i < sc; i++) { ctx.beginPath(); ctx.moveTo(ux, uy - ch); ctx.quadraticCurveTo(ux - uw / 2 + sw * i, uy - ch * 0.6, ux - uw / 2 + sw * i, uy - 2); ctx.stroke(); }
+    ctx.fillStyle = '#ffd54f'; ctx.beginPath(); ctx.arc(ux, uy - ch - 3, 4, 0, 7); ctx.fill();
+
+    // floating texts
+    ctx.font = '700 15px system-ui, sans-serif'; ctx.textAlign = 'center';
+    for (const f of S.fx) {
+      ctx.globalAlpha = Math.max(0, f.life);
+      ctx.lineWidth = 4; ctx.strokeStyle = '#fff'; ctx.strokeText(f.text, f.x, f.y);
+      ctx.fillStyle = f.color; ctx.fillText(f.text, f.x, f.y);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawItem(it) {
+    ctx.save(); ctx.translate(it.x, it.y);
+    if (it.kind === 'coin') {
+      ctx.fillStyle = '#f6b400'; ctx.beginPath(); ctx.arc(0, 0, 15, 0, 7); ctx.fill();
+      ctx.fillStyle = '#ffd54f'; ctx.beginPath(); ctx.arc(0, 0, 11, 0, 7); ctx.fill();
+      ctx.fillStyle = '#a77800'; ctx.font = '800 10px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('RM', 0, 1);
+    } else if (it.kind === 'shield') {
+      const c = COVERS[it.cover];
+      const pulse = 1 + Math.sin(performance.now() / 150) * 0.06;
+      ctx.scale(pulse, pulse);
+      ctx.fillStyle = 'rgba(255,255,255,.95)'; ctx.strokeStyle = c.color; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(0, 0, 23, 0, 7); ctx.fill(); ctx.stroke();
+      ctx.font = `24px ${EMOJI_FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(c.emoji, 0, 2);
+      ctx.font = '700 11px system-ui, sans-serif'; ctx.fillStyle = c.color; ctx.textBaseline = 'top';
+      ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; ctx.strokeText(c.name, 0, 27); ctx.fillText(c.name, 0, 27);
+    } else {
+      const covered = it.kind === 'hosp' && S.covers.med;
+      ctx.rotate(it.rot);
+      ctx.fillStyle = it.through ? '#eceff1' : covered ? '#e8f6ee' : it.kind === 'hosp' ? '#ffebee' : '#fffdf5';
+      ctx.strokeStyle = covered ? '#2e9d5b' : it.kind === 'hosp' ? '#e65a4f' : it.cost > 1 ? '#ef8f3a' : '#c9b78a';
+      ctx.lineWidth = 2;
+      rr(-it.w / 2, -it.h / 2, it.w, it.h, 8); ctx.fill(); ctx.stroke();
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#33404d'; ctx.font = '700 12px system-ui, sans-serif';
+      ctx.fillText((it.kind === 'hosp' ? '🏥 ' : '🧾 ') + it.label, 0, -7);
+      ctx.font = '700 12px system-ui, sans-serif';
+      ctx.fillStyle = covered ? '#2e9d5b' : it.kind === 'hosp' ? '#e65a4f' : '#7a6a3a';
+      ctx.fillText(covered ? 'Covered ✓' : `RM ${it.cost}k`, 0, 9);
+    }
+    ctx.restore();
+  }
+
+  // ---------- end screen ----------
+  function finish() {
+    const n = Object.values(S.covers).filter(Boolean).length;
+    const score = Math.round(n * 20 + S.peace * 0.3 + (S.savings > 0 ? 10 : 0));
+    show('end'); $('end').scrollTop = 0;
+
+    // animate score
+    const arc = $('ringArc');
+    requestAnimationFrame(() => { arc.style.strokeDashoffset = 402 * (1 - score / 100); });
+    let k = 0; const tick = setInterval(() => { k = Math.min(score, k + 2); $('scoreNum').textContent = k; if (k >= score) clearInterval(tick); }, 20);
+
+    let v, vt;
+    if (score >= 80) { v = 'Well-protected family! 🌟'; vt = 'Your umbrella held up through life\'s surprises. In real life, it\'s still worth checking your cover fits your family today.'; }
+    else if (score >= 55) { v = 'Good start! 👍'; vt = 'Your family stayed fairly dry, but a few gaps let the rain in. Most families have some gaps. The good news is that they can be fixed.'; }
+    else { v = 'Room to grow 🌱'; vt = 'Life\'s storms got through this time. That\'s OK, it\'s only a game! It shows why a little planning ahead makes a big difference.'; }
+    $('verdict').textContent = v; $('verdictText').textContent = vt;
+    $('stBills').textContent = S.paid + S.hospCovered + S.netCaught;
+    $('stMissed').textContent = S.missed;
+    $('stPeace').textContent = Math.round(S.peace) + '%';
+
+    const rows = [
+      ['life', S.covers.life
+        ? `In the game, your safety net caught ${S.netCaught} bill${S.netCaught === 1 ? '' : 's'} so your family didn't have to worry.`
+        : 'In the game, there was no safety net under your family when money was tight.',
+        'In real life: life cover pays your family a lump sum if you pass away (and often if you become totally and permanently disabled), so things like the home loan and school fees can still be paid.'],
+      ['med', S.covers.med
+        ? `In the game, it paid ${S.hospCovered} hospital bill${S.hospCovered === 1 ? '' : 's'} for you.`
+        : `In the game, hospital bills came out of your savings${S.unpaidHosp ? `, and ${S.unpaidHosp} went unpaid` : ''}.`,
+        'In real life: a medical plan can help pay hospital and surgery bills, up to its limits.'],
+      ['ci', S.covers.ci
+        ? `In the game, it gave you a lump sum of ${fmtK(CI_PAYOUT)} while your salary was low.`
+        : 'In the game, there was no lump sum while your salary was low.',
+        'In real life: critical illness cover pays a lump sum if you are diagnosed with a covered serious illness. You can use it for living costs while you recover.']
+    ];
+    $('coverList').innerHTML = rows.map(([k, game, real]) => `
+      <div class="cover-row">
+        <div class="ic">${COVERS[k].emoji}</div>
+        <div><b>${COVERS[k].name}</b> <span class="tick ${S.covers[k] ? 'y' : 'n'}">${S.covers[k] ? '✓ You had it' : '✗ Missed'}</span>
+          <p>${game}</p><p>${real}</p></div>
+      </div>`).join('');
+
+    // agent call to action
+    const who = AGENT ? AGENT : 'your insurance agent';
+    $('ctaText').textContent = `Curious about your own family's numbers? Have a friendly chat with ${who}. ${AGENT ? 'They' : 'An agent'} can help you work out your real protection gap.`;
+    const wrap = $('ctaBtnWrap'); wrap.innerHTML = '';
+    if (WA) {
+      const a = document.createElement('a');
+      a.className = 'btn wa'; a.target = '_blank'; a.rel = 'noopener';
+      const msg = `Hi${AGENT ? ' ' + AGENT : ''}! I just played Family Umbrella and scored ${score}/100. I'd like to chat about my family's protection gap.`;
+      a.href = `https://wa.me/${WA}?text=${encodeURIComponent(msg)}`;
+      a.textContent = `💬 WhatsApp ${AGENT || 'my agent'}`;
+      wrap.appendChild(a);
+    }
+  }
+
+  $('playBtn').onclick = () => { beep(660, 0.1); startGame(); };
+  $('againBtn').onclick = () => { startGame(); };
+  $('shareBtn').onclick = async () => {
+    const data = { title: 'Family Umbrella', text: 'Can you keep your family dry when life rains bills? Try this 2-minute game!', url: location.href };
+    try {
+      if (navigator.share) await navigator.share(data);
+      else { await navigator.clipboard.writeText(location.href); toast('Link copied!'); }
+    } catch (e) { /* cancelled */ }
+  };
+
+  // pause when the app goes to the background
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && S && S.running) {
+      S.running = false;
+      $('cardEmoji').textContent = '⏸️'; $('cardTitle').textContent = 'Paused';
+      $('cardText').textContent = 'Take a breath. Your family is waiting under the umbrella.';
+      $('cardEffects').innerHTML = ''; $('cardBtn').textContent = 'Continue';
+      show('game', 'card');
+      $('cardBtn').onclick = () => { $('cardBtn').onclick = resumeDefault; show('game'); S.running = true; last = performance.now(); requestAnimationFrame(loop); };
+    }
+  });
+  const resumeDefault = $('cardBtn').onclick;
+  window.__game = { state: () => S }; // used for automated testing only
+
+  // works offline once installed (only when served over the web, not from a local file)
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
+})();
+</script>
+</body>
+</html>
